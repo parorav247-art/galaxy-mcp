@@ -194,6 +194,9 @@ function createMCPServer() {
 const app = express();
 app.use(express.json());
 
+// Health check must be before auth middleware so Railway can reach it
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
 // Auth middleware
 app.use((req, res, next) => {
   const auth = req.headers.authorization;

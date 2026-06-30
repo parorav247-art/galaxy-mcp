@@ -319,7 +319,7 @@ app.get('/openapi.json', (req, res) => {
         post: {
           operationId: 'list_files',
           summary: 'List all markdown files in the vault',
-          requestBody: { required: false, content: { 'application/json': { schema: { type: 'object' } } } },
+          requestBody: { required: false, content: { 'application/json': { schema: { type: 'object', properties: {} } } } },
           responses: { '200': { description: 'File list' } }
         }
       },
@@ -338,7 +338,7 @@ app.get('/openapi.json', (req, res) => {
         post: {
           operationId: 'get_schedule',
           summary: "Get this week's schedule",
-          requestBody: { required: false, content: { 'application/json': { schema: { type: 'object' } } } },
+          requestBody: { required: false, content: { 'application/json': { schema: { type: 'object', properties: {} } } } },
           responses: { '200': { description: 'Current week schedule' } }
         }
       },

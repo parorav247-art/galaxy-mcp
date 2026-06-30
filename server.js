@@ -278,11 +278,13 @@ function createMCPServer() {
 const app = express();
 app.use(express.json());
 
-// Health check must be before auth middleware so Railway can reach it
+// Health check + OpenAPI schema must be before auth middleware
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 // Auth middleware — accepts Bearer header OR ?key= query param
 app.use((req, res, next) => {
+  if (req.path === '/openapi.json') return next();
+
   const queryKey = req.query.key;
   const auth = req.headers.authorization;
   const token = queryKey || (auth?.startsWith('Bearer ') ? auth.slice(7) : null);

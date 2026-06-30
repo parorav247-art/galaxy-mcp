@@ -298,7 +298,7 @@ app.use((req, res, next) => {
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 app.get('/openapi.json', (req, res) => {
-  const base = `${req.protocol}://${req.get('host')}`;
+  const base = `https://${req.get('host')}`;
   res.json({
     openapi: '3.1.0',
     info: { title: 'Galaxy Vault API', version: '1.0.0' },

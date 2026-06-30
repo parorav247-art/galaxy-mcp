@@ -197,15 +197,13 @@ app.use(express.json());
 // Health check must be before auth middleware so Railway can reach it
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-// Auth middleware
+// Auth middleware — accepts Bearer header OR ?key= query param
 app.use((req, res, next) => {
+  const queryKey = req.query.key;
   const auth = req.headers.authorization;
-  if (!auth?.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Missing Bearer token' });
-  }
-  const token = auth.slice(7);
-  if (!API_KEYS.includes(token)) {
-    return res.status(403).json({ error: 'Invalid API key' });
+  const token = queryKey || (auth?.startsWith('Bearer ') ? auth.slice(7) : null);
+  if (!token || !API_KEYS.includes(token)) {
+    return res.status(401).json({ error: 'Invalid or missing API key' });
   }
   next();
 });

@@ -32,6 +32,28 @@ async function getFileContent(path) {
   return Buffer.from(response.data.content, 'base64').toString('utf-8');
 }
 
+async function writeFileContent(path, content, message) {
+  // Get current SHA if file exists (required for updates)
+  let sha;
+  try {
+    const existing = await octokit.repos.getContent({
+      owner: GITHUB_OWNER, repo: GITHUB_REPO, path,
+    });
+    if (!Array.isArray(existing.data)) sha = existing.data.sha;
+  } catch {
+    // File doesn't exist yet — that's fine, sha stays undefined
+  }
+
+  await octokit.repos.createOrUpdateFileContents({
+    owner: GITHUB_OWNER,
+    repo: GITHUB_REPO,
+    path,
+    message: message || `vault: update ${path}`,
+    content: Buffer.from(content).toString('base64'),
+    ...(sha ? { sha } : {}),
+  });
+}
+
 async function listAllMarkdownFiles(dir = '') {
   const response = await octokit.repos.getContent({
     owner: GITHUB_OWNER,
@@ -105,6 +127,44 @@ function createMCPServer() {
             }
           }
         }
+      },
+      {
+        name: 'write_file',
+        description: 'Create or overwrite a vault file. Use for updating context files like current-week.md, or creating new reference files.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            path: { type: 'string', description: 'File path relative to vault root, e.g. "reference/current-week.md"' },
+            content: { type: 'string', description: 'Full file content' },
+            message: { type: 'string', description: 'Optional commit message' }
+          },
+          required: ['path', 'content']
+        }
+      },
+      {
+        name: 'append_to_file',
+        description: 'Append text to an existing vault file. Use for adding to running logs, inbox entries, or weekly summaries.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            path: { type: 'string', description: 'File path relative to vault root' },
+            content: { type: 'string', description: 'Text to append' },
+            message: { type: 'string', description: 'Optional commit message' }
+          },
+          required: ['path', 'content']
+        }
+      },
+      {
+        name: 'create_inbox_entry',
+        description: 'Drop a new note into the Galaxy inbox. Use for capturing quick thoughts, tasks, or information on the go.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            content: { type: 'string', description: 'The note content' },
+            filename: { type: 'string', description: 'Optional filename (without extension). Defaults to current timestamp.' }
+          },
+          required: ['content']
+        }
       }
     ]
   }));
@@ -177,6 +237,30 @@ function createMCPServer() {
           })
         );
         return { content: [{ type: 'text', text: parts.join('\n\n---\n\n') }] };
+      }
+
+      if (name === 'write_file') {
+        await writeFileContent(args.path, args.content, args.message);
+        return { content: [{ type: 'text', text: `Written: ${args.path}` }] };
+      }
+
+      if (name === 'append_to_file') {
+        const existing = await getFileContent(args.path).catch(() => '');
+        const newContent = existing
+          ? `${existing.trimEnd()}\n\n${args.content}`
+          : args.content;
+        await writeFileContent(args.path, newContent, args.message || `vault: append to ${args.path}`);
+        return { content: [{ type: 'text', text: `Appended to: ${args.path}` }] };
+      }
+
+      if (name === 'create_inbox_entry') {
+        const now = new Date();
+        const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const filename = args.filename
+          ? `inbox/${args.filename}.md`
+          : `inbox/${timestamp}.md`;
+        await writeFileContent(filename, args.content, `vault: inbox entry ${timestamp}`);
+        return { content: [{ type: 'text', text: `Inbox entry created: ${filename}` }] };
       }
 
       throw new Error(`Unknown tool: ${name}`);

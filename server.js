@@ -355,6 +355,7 @@ app.get('/openapi.json', (req, res) => {
       }
     },
     components: {
+      schemas: {},
       securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer' } }
     },
     security: [{ bearerAuth: [] }]
@@ -434,7 +435,12 @@ app.post('/mcp', async (req, res) => {
   res.on('close', () => server.close());
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Galaxy MCP server running on port ${PORT}`);
-});
+// Only bind a port when running locally (not on Vercel)
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`Galaxy MCP server running on port ${PORT}`);
+  });
+}
+
+export default app;
